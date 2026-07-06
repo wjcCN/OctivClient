@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1120</width>
+    <height>760</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Octiv Industrial Sensor WebService Client</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="mainLayout">
+    <item>
+     <layout class="QHBoxLayout" name="topControlLayout">
+      <item>
+       <widget class="QLabel" name="ipLabel">
+        <property name="text">
+         <string>IP Address</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="ipLineEdit">
+        <property name="minimumSize">
+         <size>
+          <width>180</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>192.168.18.52</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="connectButton">
+        <property name="text">
+         <string>Connect</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="getInfoButton">
+        <property name="text">
+         <string>Get Info</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="startStopButton">
+        <property name="text">
+         <string>Start Data</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="topSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <widget class="QSplitter" name="contentSplitter">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <widget class="QWidget" name="leftPane">
+       <layout class="QVBoxLayout" name="leftLayout">
+        <item>
+         <widget class="QGroupBox" name="infoGroupBox">
+          <property name="title">
+           <string>Device Information</string>
+          </property>
+          <layout class="QFormLayout" name="infoFormLayout">
+           <item row="0" column="0">
+            <widget class="QLabel" name="serialNumberLabel">
+             <property name="text">
+              <string>Serial Number</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QLabel" name="serialNumberValue">
+             <property name="text">
+              <string>--</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="sensorTypeLabel">
+             <property name="text">
+              <string>Sensor Type</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QLabel" name="sensorTypeValue">
+             <property name="text">
+              <string>--</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0">
+            <widget class="QLabel" name="firmwareLabel">
+             <property name="text">
+              <string>Firmware Version</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QLabel" name="firmwareValue">
+             <property name="text">
+              <string>--</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0">
+            <widget class="QLabel" name="fpgaLabel">
+             <property name="text">
+              <string>FPGA Version</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="1">
+            <widget class="QLabel" name="fpgaValue">
+             <property name="text">
+              <string>--</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0">
+            <widget class="QLabel" name="calibrationLabel">
+             <property name="text">
+              <string>Calibration Date</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="1">
+            <widget class="QLabel" name="calibrationValue">
+             <property name="text">
+              <string>--</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="configGroupBox">
+          <property name="title">
+           <string>Device Configuration</string>
+          </property>
+          <layout class="QGridLayout" name="configLayout">
+           <item row="0" column="0">
+            <widget class="QLabel" name="refreshRateLabel">
+             <property name="text">
+              <string>Refresh Rate (ms)</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QSpinBox" name="refreshRateSpinBox">
+             <property name="minimum">
+              <number>50</number>
+             </property>
+             <property name="maximum">
+              <number>60000</number>
+             </property>
+             <property name="singleStep">
+              <number>50</number>
+             </property>
+             <property name="value">
+              <number>1000</number>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="harmonicsLabel">
+             <property name="text">
+              <string>Selected Harmonics</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QLineEdit" name="harmonicsLineEdit">
+             <property name="placeholderText">
+              <string>1,2,3</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0">
+            <widget class="QLabel" name="signalLockLabel">
+             <property name="text">
+              <string>Signal Lock</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QComboBox" name="signalLockComboBox">
+             <item>
+              <property name="text">
+               <string>V</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>C</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item row="3" column="0">
+            <widget class="QPushButton" name="getConfigButton">
+             <property name="text">
+              <string>Get Config</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="1">
+            <widget class="QPushButton" name="applyConfigButton">
+             <property name="text">
+              <string>Apply Config</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <spacer name="leftSpacer">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="rightPane">
+       <layout class="QVBoxLayout" name="rightLayout">
+        <item>
+         <widget class="QGroupBox" name="temperatureGroupBox">
+          <property name="title">
+           <string>Temperature</string>
+          </property>
+          <layout class="QFormLayout" name="temperatureFormLayout">
+           <item row="0" column="0">
+            <widget class="QLabel" name="pcbTempLabel">
+             <property name="text">
+              <string>PCB Temperature</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QLabel" name="pcbTempValue">
+             <property name="text">
+              <string>--</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="sensorTempLabel">
+             <property name="text">
+              <string>Sensor Temperature</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QLabel" name="sensorTempValue">
+             <property name="text">
+              <string>--</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="dataGroupBox">
+          <property name="title">
+           <string>5 Channel Realtime Data</string>
+          </property>
+          <layout class="QVBoxLayout" name="dataLayout">
+           <item>
+            <widget class="QTableWidget" name="channelTable"/>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+    <item>
+     <widget class="QGroupBox" name="logGroupBox">
+      <property name="title">
+       <string>Communication Log</string>
+      </property>
+      <layout class="QVBoxLayout" name="logLayout">
+       <item>
+        <widget class="QTextEdit" name="logTextEdit">
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
