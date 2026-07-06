@@ -22,7 +22,11 @@
     {
       "name": "x64-Release",
       "displayName": "x64 Release - Qt 6.7.3 MSVC",
+
       "generator": "Ninja",
+      //"generator": "Visual Studio 17 2022",
+      //"architecture": "x64",
+
       "binaryDir": "${sourceDir}/out/build/x64-release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",

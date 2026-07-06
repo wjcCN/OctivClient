@@ -5,12 +5,17 @@
 #include "utils/Logger.h"
 
 #include <QAbstractItemView>
+#include <QComboBox>
+#include <QCoreApplication>
+#include <QDateTime>
+#include <QDir>
 #include <QHeaderView>
 #include <QJsonDocument>
 #include <QLabel>
 #include <QRegularExpression>
 #include <QStatusBar>
 #include <QTableWidgetItem>
+#include <QTextStream>
 
 #include <cmath>
 
@@ -22,6 +27,8 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     setupTable();
+    setupLanguageControls();
+    applyLanguage();
 
     m_dataTimer->setTimerType(Qt::PreciseTimer);
     m_dataTimer->setInterval(ui->refreshRateSpinBox->value());
@@ -43,14 +50,16 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
+    endDataRecording();
     delete ui;
 }
 
 void MainWindow::setupTable()
 {
     ui->channelTable->setRowCount(5);
-    ui->channelTable->setColumnCount(4);
+    ui->channelTable->setColumnCount(5);
     ui->channelTable->setHorizontalHeaderLabels({
+        QStringLiteral("timestamp"),
         QStringLiteral("frequency"),
         QStringLiteral("voltage"),
         QStringLiteral("current"),
@@ -75,11 +84,78 @@ void MainWindow::setupTable()
     }
 }
 
+void MainWindow::setupLanguageControls()
+{
+    m_languageLabel = new QLabel(this);
+    m_languageComboBox = new QComboBox(this);
+    m_languageComboBox->addItem(QStringLiteral("中文"), QVariant::fromValue(0));
+    m_languageComboBox->addItem(QStringLiteral("English"), QVariant::fromValue(1));
+    m_languageComboBox->setCurrentIndex(0);
+
+    const int insertIndex = qMax(0, ui->topControlLayout->count() - 1);
+    ui->topControlLayout->insertWidget(insertIndex, m_languageLabel);
+    ui->topControlLayout->insertWidget(insertIndex + 1, m_languageComboBox);
+
+    connect(m_languageComboBox, &QComboBox::currentIndexChanged, this, [this](int index) {
+        m_language = index == 1 ? Language::English : Language::Chinese;
+        applyLanguage();
+    });
+}
+
+void MainWindow::applyLanguage()
+{
+    const bool zh = isChinese();
+
+    setWindowTitle(zh
+        ? QStringLiteral("Octiv 工业传感器 WebService 客户端")
+        : QStringLiteral("Octiv Industrial Sensor WebService Client"));
+
+    m_languageLabel->setText(zh ? QStringLiteral("语言") : QStringLiteral("Language"));
+    m_languageComboBox->setItemText(0, zh ? QStringLiteral("中文") : QStringLiteral("Chinese"));
+    m_languageComboBox->setItemText(1, zh ? QStringLiteral("English") : QStringLiteral("English"));
+
+    ui->ipLabel->setText(zh ? QStringLiteral("IP 地址") : QStringLiteral("IP Address"));
+    ui->connectButton->setText(zh ? QStringLiteral("连接") : QStringLiteral("Connect"));
+    ui->getInfoButton->setText(zh ? QStringLiteral("获取信息") : QStringLiteral("Get Info"));
+    ui->startStopButton->setText(m_dataTimer->isActive() ? stopDataText() : startDataText());
+
+    ui->infoGroupBox->setTitle(zh ? QStringLiteral("设备信息") : QStringLiteral("Device Information"));
+    ui->serialNumberLabel->setText(zh ? QStringLiteral("序列号") : QStringLiteral("Serial Number"));
+    ui->sensorTypeLabel->setText(zh ? QStringLiteral("传感器类型") : QStringLiteral("Sensor Type"));
+    ui->firmwareLabel->setText(zh ? QStringLiteral("固件版本") : QStringLiteral("Firmware Version"));
+    ui->fpgaLabel->setText(zh ? QStringLiteral("FPGA 版本") : QStringLiteral("FPGA Version"));
+    ui->calibrationLabel->setText(zh ? QStringLiteral("校准日期") : QStringLiteral("Calibration Date"));
+
+    ui->configGroupBox->setTitle(zh ? QStringLiteral("设备配置") : QStringLiteral("Device Configuration"));
+    ui->refreshRateLabel->setText(zh ? QStringLiteral("刷新周期 (ms)") : QStringLiteral("Refresh Rate (ms)"));
+    ui->harmonicsLabel->setText(zh ? QStringLiteral("选择谐波") : QStringLiteral("Selected Harmonics"));
+    ui->harmonicsLineEdit->setPlaceholderText(QStringLiteral("1,2,3"));
+    ui->signalLockLabel->setText(zh ? QStringLiteral("信号锁定") : QStringLiteral("Signal Lock"));
+    ui->getConfigButton->setText(zh ? QStringLiteral("读取配置") : QStringLiteral("Get Config"));
+    ui->applyConfigButton->setText(zh ? QStringLiteral("应用配置") : QStringLiteral("Apply Config"));
+
+    ui->temperatureGroupBox->setTitle(zh ? QStringLiteral("温度") : QStringLiteral("Temperature"));
+    ui->pcbTempLabel->setText(zh ? QStringLiteral("PCB 温度") : QStringLiteral("PCB Temperature"));
+    ui->sensorTempLabel->setText(zh ? QStringLiteral("传感器温度") : QStringLiteral("Sensor Temperature"));
+
+    ui->dataGroupBox->setTitle(zh ? QStringLiteral("5 通道实时数据") : QStringLiteral("5 Channel Realtime Data"));
+    ui->channelTable->setHorizontalHeaderLabels({
+        zh ? QStringLiteral("时间戳") : QStringLiteral("timestamp"),
+        zh ? QStringLiteral("频率") : QStringLiteral("frequency"),
+        zh ? QStringLiteral("电压") : QStringLiteral("voltage"),
+        zh ? QStringLiteral("电流") : QStringLiteral("current"),
+        zh ? QStringLiteral("相位") : QStringLiteral("phase")
+    });
+
+    ui->logGroupBox->setTitle(zh ? QStringLiteral("通信日志") : QStringLiteral("Communication Log"));
+}
+
 void MainWindow::onConnectClicked()
 {
     m_client->setHost(ui->ipLineEdit->text());
     Logger::info(QStringLiteral("Connecting to Octiv sensor at %1.").arg(m_client->host()));
     m_client->connectToDevice();
+    m_client->getInfo();
     m_client->getConfig();
     m_client->getTemperature();
 }
@@ -94,17 +170,21 @@ void MainWindow::onStartStopClicked()
 {
     if (m_dataTimer->isActive()) {
         m_dataTimer->stop();
-        ui->startStopButton->setText(QStringLiteral("Start Data"));
+        endDataRecording();
+        ui->startStopButton->setText(startDataText());
         Logger::info(QStringLiteral("Realtime polling stopped."));
         return;
     }
 
     m_client->setHost(ui->ipLineEdit->text());
     m_dataTimer->setInterval(ui->refreshRateSpinBox->value());
+    if (!beginDataRecording()) {
+        return;
+    }
     m_temperaturePollCounter = 0;
     pollRealtimeData();
     m_dataTimer->start();
-    ui->startStopButton->setText(QStringLiteral("Stop Data"));
+    ui->startStopButton->setText(stopDataText());
     Logger::info(QStringLiteral("Realtime polling started, interval %1 ms.").arg(m_dataTimer->interval()));
 }
 
@@ -214,7 +294,11 @@ void MainWindow::handleRequestFailed(OctivClient::RequestKind kind, int httpStat
 
 void MainWindow::handleConnectionStateChanged(bool connected)
 {
-    statusBar()->showMessage(connected ? QStringLiteral("Connected") : QStringLiteral("Disconnected"));
+    if (isChinese()) {
+        statusBar()->showMessage(connected ? QStringLiteral("已连接") : QStringLiteral("已断开"));
+    } else {
+        statusBar()->showMessage(connected ? QStringLiteral("Connected") : QStringLiteral("Disconnected"));
+    }
 }
 
 void MainWindow::appendLog(const QString &message)
@@ -224,6 +308,13 @@ void MainWindow::appendLog(const QString &message)
 
 void MainWindow::updateDeviceInfo(const Octiv::DeviceInfo &info)
 {
+    const QString deviceName = info.serialNumber.trimmed().isEmpty()
+        ? info.sensorType.trimmed()
+        : info.serialNumber.trimmed();
+    if (!deviceName.isEmpty()) {
+        m_currentDeviceName = deviceName;
+    }
+
     ui->serialNumberValue->setText(info.serialNumber.isEmpty() ? QStringLiteral("--") : info.serialNumber);
     ui->sensorTypeValue->setText(info.sensorType.isEmpty() ? QStringLiteral("--") : info.sensorType);
 
@@ -269,11 +360,94 @@ void MainWindow::updateChannels(const QVector<Octiv::ChannelData> &channels)
         }
 
         const Octiv::ChannelData &channel = channels.at(row);
-        ui->channelTable->item(row, 0)->setText(numberText(channel.frequency, 3));
-        ui->channelTable->item(row, 1)->setText(numberText(channel.voltage, 3));
-        ui->channelTable->item(row, 2)->setText(numberText(channel.current, 3));
-        ui->channelTable->item(row, 3)->setText(numberText(channel.phase, 3));
+        ui->channelTable->item(row, 0)->setText(QString::number(channel.timestamp));
+        ui->channelTable->item(row, 1)->setText(numberText(channel.frequency, 3));
+        ui->channelTable->item(row, 2)->setText(numberText(channel.voltage, 3));
+        ui->channelTable->item(row, 3)->setText(numberText(channel.current, 3));
+        ui->channelTable->item(row, 4)->setText(numberText(channel.phase, 3));
     }
+
+    appendChannelsToOutput(channels);
+}
+
+bool MainWindow::beginDataRecording()
+{
+    if (m_outputFile.isOpen()) {
+        m_outputFile.close();
+    }
+
+    QString basePath = QCoreApplication::applicationDirPath();
+#if defined(QT_DEBUG) && defined(OCTIV_SOURCE_DIR)
+    basePath = QStringLiteral(OCTIV_SOURCE_DIR);
+#endif
+
+    QDir appDir(basePath);
+    if (!appDir.exists(QStringLiteral("OutData")) && !appDir.mkpath(QStringLiteral("OutData"))) {
+        Logger::error(QStringLiteral("Failed to create OutData folder under %1.").arg(appDir.absolutePath()));
+        return false;
+    }
+
+    QDir outputDir(appDir.filePath(QStringLiteral("OutData")));
+    QString deviceName = m_currentDeviceName.trimmed();
+    if ((deviceName.isEmpty() || deviceName == QLatin1String("OctivSensor")) && !m_client->host().trimmed().isEmpty()) {
+        deviceName = QStringLiteral("OctivSensor_%1").arg(m_client->host().trimmed());
+    }
+
+    const QString timestamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss"));
+    m_outputFilePath = outputDir.filePath(QStringLiteral("%1_%2.txt").arg(safeFileNamePart(deviceName), timestamp));
+    m_outputFile.setFileName(m_outputFilePath);
+
+    if (!m_outputFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        Logger::error(QStringLiteral("Failed to open output file %1: %2").arg(m_outputFilePath, m_outputFile.errorString()));
+        m_outputFilePath.clear();
+        m_recordingActive = false;
+        return false;
+    }
+
+    QTextStream stream(&m_outputFile);
+    stream << "Timestamp\tChannel\tFrequency\tVoltage\tCurrent\tPhase\n";
+    stream.flush();
+    m_recordingActive = true;
+    Logger::info(QStringLiteral("Realtime data recording started: %1").arg(m_outputFilePath));
+    return true;
+}
+
+void MainWindow::endDataRecording()
+{
+    if (!m_recordingActive && !m_outputFile.isOpen()) {
+        return;
+    }
+
+    if (m_outputFile.isOpen()) {
+        QTextStream stream(&m_outputFile);
+        stream.flush();
+        m_outputFile.close();
+    }
+
+    m_recordingActive = false;
+    if (!m_outputFilePath.isEmpty()) {
+        Logger::info(QStringLiteral("Realtime data saved: %1").arg(m_outputFilePath));
+    }
+}
+
+void MainWindow::appendChannelsToOutput(const QVector<Octiv::ChannelData> &channels)
+{
+    if (!m_recordingActive || !m_outputFile.isOpen()) {
+        return;
+    }
+
+    QTextStream stream(&m_outputFile);
+    const int count = qMin(ui->channelTable->rowCount(), channels.size());
+    for (int i = 0; i < count; ++i) {
+        const Octiv::ChannelData &channel = channels.at(i);
+        stream << channel.timestamp << '\t'
+               << (channel.channel > 0 ? channel.channel : i + 1) << '\t'
+               << numberText(channel.frequency, 6) << '\t'
+               << numberText(channel.voltage, 6) << '\t'
+               << numberText(channel.current, 6) << '\t'
+               << numberText(channel.phase, 6) << '\n';
+    }
+    stream.flush();
 }
 
 Octiv::DeviceConfig MainWindow::configFromUi() const
@@ -331,4 +505,31 @@ QString MainWindow::numberText(double value, int precision) const
         return QStringLiteral("--");
     }
     return QString::number(value, 'f', precision);
+}
+
+QString MainWindow::safeFileNamePart(const QString &text) const
+{
+    QString safe = text.trimmed();
+    safe.replace(QRegularExpression(QStringLiteral("[\\\\/:*?\"<>|\\s]+")), QStringLiteral("_"));
+    safe.replace(QRegularExpression(QStringLiteral("_+")), QStringLiteral("_"));
+    safe.remove(QRegularExpression(QStringLiteral("^_+|_+$")));
+    if (safe.isEmpty()) {
+        return QStringLiteral("OctivSensor");
+    }
+    return safe.left(80);
+}
+
+QString MainWindow::startDataText() const
+{
+    return isChinese() ? QStringLiteral("开始数据") : QStringLiteral("Start Data");
+}
+
+QString MainWindow::stopDataText() const
+{
+    return isChinese() ? QStringLiteral("停止数据") : QStringLiteral("Stop Data");
+}
+
+bool MainWindow::isChinese() const
+{
+    return m_language == Language::Chinese;
 }

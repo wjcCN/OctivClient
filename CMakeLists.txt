@@ -5,6 +5,7 @@ project(OctivClient LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+#set(CMAKE_PREFIX_PATH "C:/Qt/6.7.3/msvc2022_64")
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
@@ -29,6 +30,10 @@ add_executable(OctivClient
 
 target_include_directories(OctivClient PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_compile_definitions(OctivClient PRIVATE
+    OCTIV_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
 target_link_libraries(OctivClient PRIVATE

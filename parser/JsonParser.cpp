@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <initializer_list>
 #include <limits>
 
 namespace {
@@ -50,6 +51,39 @@ double valueToDouble(const QJsonValue &value, double fallback = 0.0)
         return ok ? result : fallback;
     }
     return fallback;
+}
+
+QString normalizedKey(QString key)
+{
+    QString normalized;
+    normalized.reserve(key.size());
+    for (const QChar &ch : key) {
+        if (ch.isLetterOrNumber()) {
+            normalized.append(ch.toLower());
+        }
+    }
+    return normalized;
+}
+
+QJsonValue valueForAnyKey(const QJsonObject &object, std::initializer_list<QString> keys)
+{
+    for (const QString &key : keys) {
+        const QJsonValue value = object.value(key);
+        if (!value.isUndefined()) {
+            return value;
+        }
+    }
+
+    for (const QString &key : keys) {
+        const QString target = normalizedKey(key);
+        for (auto it = object.constBegin(); it != object.constEnd(); ++it) {
+            if (normalizedKey(it.key()) == target) {
+                return it.value();
+            }
+        }
+    }
+
+    return QJsonValue();
 }
 
 QVector<int> intVector(const QJsonValue &value)
@@ -194,8 +228,17 @@ bool JsonParser::parseTemperature(const QByteArray &payload, Octiv::Temperature 
         return false;
     }
 
-    temperature->pcbTemperature = valueToDouble(object.value(QStringLiteral("PCB_Temperature")));
-    temperature->sensorTemperature = valueToDouble(object.value(QStringLiteral("Sensor_Temperature")));
+    temperature->pcbTemperature = valueToDouble(valueForAnyKey(object, {
+        QStringLiteral("PCB_Temperature"),
+        QStringLiteral("PCB Temperature"),
+        QStringLiteral("Board"),
+        QStringLiteral("Board_Temperature")
+    }));
+    temperature->sensorTemperature = valueToDouble(valueForAnyKey(object, {
+        QStringLiteral("Sensor_Temperature"),
+        QStringLiteral("Sensor Temperature"),
+        QStringLiteral("Sensor")
+    }));
     return true;
 }
 

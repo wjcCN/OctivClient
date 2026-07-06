@@ -6,6 +6,7 @@ TEMPLATE = app
 TARGET = OctivClient
 
 INCLUDEPATH += $$PWD
+DEFINES += OCTIV_SOURCE_DIR=\\\"$$PWD\\\"
 
 SOURCES += \
     main.cpp \
