@@ -9,6 +9,7 @@
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
+#include <QHBoxLayout>
 #include <QHeaderView>
 #include <QJsonDocument>
 #include <QLabel>
@@ -17,6 +18,7 @@
 #include <QTableWidgetItem>
 #include <QTextStream>
 
+#include <algorithm>
 #include <cmath>
 
 MainWindow::MainWindow(QWidget *parent)
@@ -25,13 +27,14 @@ MainWindow::MainWindow(QWidget *parent)
       m_client(new OctivClient(this)),
       m_dataTimer(new QTimer(this))
 {
-    ui->setupUi(this);
+    ui->setupUi(this);//根据ui文件创建所有界面控件
     setupTable();
+    setupHarmonicControls();
     setupLanguageControls();
     applyLanguage();
 
-    m_dataTimer->setTimerType(Qt::PreciseTimer);
-    m_dataTimer->setInterval(ui->refreshRateSpinBox->value());
+    m_dataTimer->setTimerType(Qt::PreciseTimer);//尽量提高定时轮询精度
+    m_dataTimer->setInterval(ui->refreshRateSpinBox->value());//默认使用界面刷新周期输入框的值
 
     connect(ui->connectButton, &QPushButton::clicked, this, &MainWindow::onConnectClicked);
     connect(ui->getInfoButton, &QPushButton::clicked, this, &MainWindow::onGetInfoClicked);
@@ -72,14 +75,14 @@ void MainWindow::setupTable()
         QStringLiteral("CH4"),
         QStringLiteral("CH5")
     });
-    ui->channelTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    ui->channelTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);//列宽自动填满表格
     ui->channelTable->verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
     ui->channelTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     ui->channelTable->setSelectionMode(QAbstractItemView::NoSelection);
 
     for (int row = 0; row < ui->channelTable->rowCount(); ++row) {
         for (int column = 0; column < ui->channelTable->columnCount(); ++column) {
-            ui->channelTable->setItem(row, column, new QTableWidgetItem(QStringLiteral("--")));
+            ui->channelTable->setItem(row, column, new QTableWidgetItem(QStringLiteral("--")));//单元格填充--
         }
     }
 }
@@ -100,6 +103,35 @@ void MainWindow::setupLanguageControls()
         m_language = index == 1 ? Language::English : Language::Chinese;
         applyLanguage();
     });
+}
+
+void MainWindow::setupHarmonicControls()
+{
+    ui->harmonicsLineEdit->hide();
+
+    m_harmonicsWidget = new QWidget(this);
+    auto *layout = new QHBoxLayout(m_harmonicsWidget);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(4);
+
+    m_harmonicLabels.reserve(5);
+    m_harmonicComboBoxes.reserve(5);
+    for (int i = 0; i < 5; ++i) {
+        auto *label = new QLabel(QStringLiteral("CH%1").arg(i + 1), m_harmonicsWidget);
+        auto *comboBox = new QComboBox(m_harmonicsWidget);
+        comboBox->setMinimumWidth(56);
+        comboBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+
+        m_harmonicLabels.append(label);
+        m_harmonicComboBoxes.append(comboBox);
+        layout->addWidget(label);
+        layout->addWidget(comboBox);
+    }
+    layout->addStretch(1);
+
+    ui->configLayout->addWidget(m_harmonicsWidget, 1, 1);
+    updateHarmonicOptions({});
+    setSelectedHarmonics({0, 0, 0, 0, 0});
 }
 
 void MainWindow::applyLanguage()
@@ -128,8 +160,7 @@ void MainWindow::applyLanguage()
 
     ui->configGroupBox->setTitle(zh ? QStringLiteral("设备配置") : QStringLiteral("Device Configuration"));
     ui->refreshRateLabel->setText(zh ? QStringLiteral("刷新周期 (ms)") : QStringLiteral("Refresh Rate (ms)"));
-    ui->harmonicsLabel->setText(zh ? QStringLiteral("选择谐波") : QStringLiteral("Selected Harmonics"));
-    ui->harmonicsLineEdit->setPlaceholderText(QStringLiteral("1,2,3"));
+    ui->harmonicsLabel->setText(zh ? QStringLiteral("CH1-CH5 谐波") : QStringLiteral("CH1-CH5 Harmonics"));
     ui->signalLockLabel->setText(zh ? QStringLiteral("信号锁定") : QStringLiteral("Signal Lock"));
     ui->getConfigButton->setText(zh ? QStringLiteral("读取配置") : QStringLiteral("Get Config"));
     ui->applyConfigButton->setText(zh ? QStringLiteral("应用配置") : QStringLiteral("Apply Config"));
@@ -168,7 +199,7 @@ void MainWindow::onGetInfoClicked()
 
 void MainWindow::onStartStopClicked()
 {
-    if (m_dataTimer->isActive()) {
+    if (m_dataTimer->isActive()) {//如果正在采集
         m_dataTimer->stop();
         endDataRecording();
         ui->startStopButton->setText(startDataText());
@@ -203,6 +234,12 @@ void MainWindow::onApplyConfigClicked()
     }
 
     m_client->setHost(ui->ipLineEdit->text());
+    m_lastPostedConfig = config;
+    m_waitingConfigReadback = true;
+    Logger::info(QStringLiteral("Posting config selected_harmonics=[%1], refresh_rate=%2, signal_lock=%3.")
+                     .arg(harmonicListText(config.selectedHarmonics))
+                     .arg(config.refreshRate)
+                     .arg(config.signalLock));
     m_client->postConfig(config);
 }
 
@@ -211,7 +248,7 @@ void MainWindow::pollRealtimeData()
     m_client->getData();
 
     ++m_temperaturePollCounter;
-    if (m_temperaturePollCounter == 1 || m_temperaturePollCounter >= 5) {
+    if (m_temperaturePollCounter == 1 || m_temperaturePollCounter >= 5) {//首次和每五次进行温度请求
         m_client->getTemperature();
         m_temperaturePollCounter = 1;
     }
@@ -239,13 +276,29 @@ void MainWindow::handleRawResponse(OctivClient::RequestKind kind, const QByteArr
         if (JsonParser::parseConfig(payload, &config, &parseError)) {
             updateConfig(config);
             Logger::info(QStringLiteral("config.cgi parsed successfully."));
+            if (m_waitingConfigReadback) {
+                if (config.selectedHarmonics != m_lastPostedConfig.selectedHarmonics
+                    || config.refreshRate != m_lastPostedConfig.refreshRate
+                    || config.signalLock != m_lastPostedConfig.signalLock) {
+                    Logger::warning(QStringLiteral("Device readback differs from posted config. posted selected_harmonics=[%1], refresh_rate=%2, signal_lock=%3; device selected_harmonics=[%4], refresh_rate=%5, signal_lock=%6.")
+                                        .arg(harmonicListText(m_lastPostedConfig.selectedHarmonics))
+                                        .arg(m_lastPostedConfig.refreshRate)
+                                        .arg(m_lastPostedConfig.signalLock)
+                                        .arg(harmonicListText(config.selectedHarmonics))
+                                        .arg(config.refreshRate)
+                                        .arg(config.signalLock));
+                } else {
+                    Logger::info(QStringLiteral("Device readback matches posted config."));
+                }
+                m_waitingConfigReadback = false;
+            }
         } else {
             Logger::error(QStringLiteral("config.cgi parse failed: %1").arg(parseError));
         }
         break;
     }
     case OctivClient::RequestKind::PostConfig:
-        Logger::info(QStringLiteral("config.cgi accepted by device."));
+        Logger::info(QStringLiteral("config.cgi accepted by device. Reading back device config."));
         m_client->getConfig();
         break;
     case OctivClient::RequestKind::Temperature: {
@@ -290,6 +343,7 @@ void MainWindow::handleRequestFailed(OctivClient::RequestKind kind, int httpStat
                       .arg(requestKindName(kind))
                       .arg(httpStatus)
                       .arg(statusText, body.isEmpty() ? QStringLiteral("<empty>") : body));
+                        //接口名，http状态码，body前512字符
 }
 
 void MainWindow::handleConnectionStateChanged(bool connected)
@@ -314,6 +368,7 @@ void MainWindow::updateDeviceInfo(const Octiv::DeviceInfo &info)
     if (!deviceName.isEmpty()) {
         m_currentDeviceName = deviceName;
     }
+    updateHarmonicOptions(info.harmonics);
 
     ui->serialNumberValue->setText(info.serialNumber.isEmpty() ? QStringLiteral("--") : info.serialNumber);
     ui->sensorTypeValue->setText(info.sensorType.isEmpty() ? QStringLiteral("--") : info.sensorType);
@@ -331,11 +386,7 @@ void MainWindow::updateConfig(const Octiv::DeviceConfig &config)
     ui->refreshRateSpinBox->setValue(config.refreshRate);
     m_dataTimer->setInterval(config.refreshRate);
 
-    QStringList harmonics;
-    for (const int harmonic : config.selectedHarmonics) {
-        harmonics.append(QString::number(harmonic));
-    }
-    ui->harmonicsLineEdit->setText(harmonics.join(QStringLiteral(",")));
+    setSelectedHarmonics(config.selectedHarmonics);
 
     const int lockIndex = ui->signalLockComboBox->findText(QString(config.signalLock));
     if (lockIndex >= 0) {
@@ -370,14 +421,14 @@ void MainWindow::updateChannels(const QVector<Octiv::ChannelData> &channels)
     appendChannelsToOutput(channels);
 }
 
-bool MainWindow::beginDataRecording()
+bool MainWindow::beginDataRecording()//文件写入逻辑
 {
     if (m_outputFile.isOpen()) {
         m_outputFile.close();
     }
 
     QString basePath = QCoreApplication::applicationDirPath();
-#if defined(QT_DEBUG) && defined(OCTIV_SOURCE_DIR)
+#if defined(QT_DEBUG) && defined(OCTIV_SOURCE_DIR)//？
     basePath = QStringLiteral(OCTIV_SOURCE_DIR);
 #endif
 
@@ -412,7 +463,7 @@ bool MainWindow::beginDataRecording()
     return true;
 }
 
-void MainWindow::endDataRecording()
+void MainWindow::endDataRecording()//停止采集或关闭窗口时执行
 {
     if (!m_recordingActive && !m_outputFile.isOpen()) {
         return;
@@ -450,6 +501,55 @@ void MainWindow::appendChannelsToOutput(const QVector<Octiv::ChannelData> &chann
     stream.flush();
 }
 
+void MainWindow::updateHarmonicOptions(const QVector<int> &harmonics)
+{
+    QVector<int> options;
+    options.reserve(qMax(16, harmonics.size() + 1));
+    options.append(0);
+
+    if (harmonics.isEmpty()) {
+        for (int value = 1; value <= 15; ++value) {
+            options.append(value);
+        }
+    } else {
+        for (const int harmonic : harmonics) {
+            if (!options.contains(harmonic)) {
+                options.append(harmonic);
+            }
+        }
+    }
+
+    std::sort(options.begin(), options.end());
+
+    QVector<int> currentValues = selectedHarmonicsFromUi();
+    while (currentValues.size() < 5) {
+        currentValues.append(0);
+    }
+
+    for (QComboBox *comboBox : std::as_const(m_harmonicComboBoxes)) {
+        comboBox->clear();
+        for (const int option : options) {
+            comboBox->addItem(QString::number(option), option);
+        }
+    }
+
+    setSelectedHarmonics(currentValues);
+}
+
+void MainWindow::setSelectedHarmonics(const QVector<int> &harmonics)
+{
+    for (int i = 0; i < m_harmonicComboBoxes.size(); ++i) {
+        QComboBox *comboBox = m_harmonicComboBoxes.at(i);
+        const int value = i < harmonics.size() ? harmonics.at(i) : 0;
+        int index = comboBox->findData(value);
+        if (index < 0) {
+            comboBox->addItem(QString::number(value), value);
+            index = comboBox->findData(value);
+        }
+        comboBox->setCurrentIndex(index);
+    }
+}
+
 Octiv::DeviceConfig MainWindow::configFromUi() const
 {
     Octiv::DeviceConfig config;
@@ -461,16 +561,12 @@ Octiv::DeviceConfig MainWindow::configFromUi() const
     return config;
 }
 
-QVector<int> MainWindow::selectedHarmonicsFromUi() const
+QVector<int> MainWindow::selectedHarmonicsFromUi() const//谐波字符串转换读取
 {
     QVector<int> harmonics;
-    const QStringList parts = ui->harmonicsLineEdit->text().split(QRegularExpression(QStringLiteral("[,;\\s]+")), Qt::SkipEmptyParts);
-    for (const QString &part : parts) {
-        bool ok = false;
-        const int value = part.toInt(&ok);
-        if (ok) {
-            harmonics.append(value);
-        }
+    harmonics.reserve(m_harmonicComboBoxes.size());
+    for (const QComboBox *comboBox : m_harmonicComboBoxes) {
+        harmonics.append(comboBox->currentData().toInt());
     }
     return harmonics;
 }
@@ -507,7 +603,7 @@ QString MainWindow::numberText(double value, int precision) const
     return QString::number(value, 'f', precision);
 }
 
-QString MainWindow::safeFileNamePart(const QString &text) const
+QString MainWindow::safeFileNamePart(const QString &text) const//名称合法检测替换为"_"
 {
     QString safe = text.trimmed();
     safe.replace(QRegularExpression(QStringLiteral("[\\\\/:*?\"<>|\\s]+")), QStringLiteral("_"));
@@ -517,6 +613,16 @@ QString MainWindow::safeFileNamePart(const QString &text) const
         return QStringLiteral("OctivSensor");
     }
     return safe.left(80);
+}
+
+QString MainWindow::harmonicListText(const QVector<int> &harmonics) const
+{
+    QStringList parts;
+    parts.reserve(harmonics.size());
+    for (const int harmonic : harmonics) {
+        parts.append(QString::number(harmonic));
+    }
+    return parts.join(QStringLiteral(","));
 }
 
 QString MainWindow::startDataText() const

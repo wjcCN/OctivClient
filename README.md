@@ -1,187 +1,57 @@
-# Octiv Industrial Sensor WebService Client v1.1
+# OctivClient v1.1
 
-Qt 6 Widgets based industrial host-computer client for Octiv Sensor devices. The application communicates with the sensor through HTTP REST APIs, parses JSON responses, displays device status and five-channel realtime measurement data, and records captured data to TXT files.
+OctivClient 是一个面向 Octiv 工业传感器的 Qt 6 桌面客户端，用于通过 WebService 接口连接传感器、读取设备信息、配置采样参数，并实时查看五通道测量数据与温度状态。
 
-![OctivClient v1.1 UI](docs/images/octiv-client-v1.1-ui.png)
+![OctivClient v1.1 界面](docs/images/octiv-client-v1.1-ui.png)
 
-## Version
+## 主要功能
 
-Current release: **v1.1**
+- 通过 IP 地址连接 Octiv 工业传感器 WebService。
+- 读取序列号、传感器类型、固件版本、FPGA 版本、校准日期等设备信息。
+- 配置刷新周期、CH1-CH5 谐波参数和信号锁定模式。
+- 轮询 PCB 温度、传感器温度以及五通道实时数据。
+- 展示频率、电压、电流、相位等实时测量字段。
+- 提供中英文界面切换。
+- 输出通信日志，便于现场调试和问题定位。
 
-Main v1.1 updates:
+## 系统结构
 
-- Fixed temperature parsing for the actual device response fields:
-  - `Board` -> PCB temperature
-  - `Sensor` -> Sensor temperature
-- Added `timestamp` column before `frequency` in the realtime data table.
-- Added TXT recording from Start Data to Stop Data.
-- Added automatic `OutData` folder creation.
-- Debug build writes data to the source folder beside `main.cpp`.
-- Release build writes data to the folder beside `OctivClient.exe`.
-- Added Chinese/English UI switching.
+![OctivClient 系统结构](docs/images/octiv-client-v1.1-architecture.png)
 
-## Target Device
+客户端通过 Qt Network 发起 HTTP/WebService 请求，设备返回 JSON 数据后由解析模块转换为界面数据模型，再刷新主窗口表格、状态区和日志区。
 
-Default Octiv Sensor address:
+## 使用流程
 
-```text
-192.168.18.52
-```
+![OctivClient 工作流程](docs/images/octiv-client-v1.1-workflow.png)
 
-Local host example:
+1. 输入传感器 IP 地址，点击“连接”。
+2. 点击“获取信息”读取设备基本信息。
+3. 根据需要读取或应用设备配置。
+4. 点击“开始数据”进入实时数据采集。
+5. 在表格和通信日志中查看数据状态。
 
-```text
-192.168.18.53
-```
-
-Protocol:
-
-```text
-HTTP REST + JSON
-```
-
-## Supported APIs
-
-| API | Method | Purpose |
-|---|---|---|
-| `/octiv_service/info.cgi` | GET | Read serial number, sensor type, firmware, FPGA revision and calibration date |
-| `/octiv_service/config.cgi` | GET | Read refresh rate, selected harmonics and signal lock |
-| `/octiv_service/config.cgi` | POST | Update refresh rate, selected harmonics and signal lock |
-| `/octiv_service/temperature.cgi` | GET | Read PCB and sensor temperature |
-| `/octiv_service/data.cgi` | GET | Read realtime timestamp, frequency, voltage, current and phase |
-| `/octiv_service/ionfluxparams.cgi` | GET/POST | Read or update Ion Flux parameters |
-
-## Runtime Data Output
-
-When the user clicks **Start Data**, the client creates a TXT file and appends five-channel realtime data until **Stop Data** is clicked.
-
-Output folder rules:
-
-| Build type | Output folder |
-|---|---|
-| Debug | `OctivClient/OutData` beside `main.cpp` |
-| Release | `OutData` beside `OctivClient.exe` |
-
-File name format:
-
-```text
-<device-name>_<yyyyMMdd_HHmmss>.txt
-```
-
-Example:
-
-```text
-IP213-2550-A-178_20260707_094448.txt
-```
-
-TXT columns:
-
-```text
-Timestamp    Channel    Frequency    Voltage    Current    Phase
-```
-
-## Architecture
-
-```mermaid
-flowchart LR
-    Sensor["Octiv Sensor<br/>192.168.18.52"] -->|"HTTP GET/POST JSON"| Client["OctivClient<br/>QNetworkAccessManager"]
-    Client --> Parser["JsonParser<br/>validation and mapping"]
-    Parser --> Model["OctivData models"]
-    Model --> UI["MainWindow<br/>Qt Widgets UI"]
-    UI --> Table["5-channel realtime table"]
-    UI --> Log["Communication log"]
-    UI --> OutData["OutData/*.txt"]
-```
-
-## Project Structure
-
-```text
-OctivClient/
-├── main.cpp
-├── MainWindow.ui
-├── MainWindow.cpp
-├── MainWindow.h
-├── network/
-│   └── OctivClient.h/.cpp
-├── model/
-│   └── OctivData.h
-├── parser/
-│   └── JsonParser.h/.cpp
-├── utils/
-│   └── Logger.h/.cpp
-├── OutData/
-│   └── .gitkeep
-├── docs/
-│   ├── SourceCode_LineByLine.md
-│   └── images/
-│       └── octiv-client-v1.1-ui.png
-└── releases/
-    └── OctivClient_Release.zip
-```
-
-## Build Requirements
+## 构建环境
 
 - Windows 10/11
-- Visual Studio 2022 MSVC x64
-- Qt 6.7.3 MSVC 2022 64-bit
-- CMake 3.16+
-- Ninja
+- Visual Studio 2022 或兼容 MSVC 工具链
+- Qt 6.11.1 MSVC 2022 64-bit
+- CMake 3.16 或更高版本
 
-Qt path used by the provided presets:
+本仓库已包含 `CMakePresets.json`，默认使用本机路径：
 
 ```text
-C:/Qt/6.7.3/msvc2022_64
+D:/Programs/Qt/6.11.1/msvc2022_64
 ```
 
-## Build Commands
+如果 Qt 安装在其他目录，可修改 `CMakePresets.json` 中的 `CMAKE_PREFIX_PATH` 和 `QTDIR`，或在系统环境变量中设置 `QTDIR`。
 
-Debug:
+## 发行版
 
-```bat
-cd /d C:\Users\艾兰科技\Desktop\WJC\WJC_Program\OctivClient
-call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
-"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -S . -B out\build\x64-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH=C:/Qt/6.7.3/msvc2022_64 -DCMAKE_DISABLE_FIND_PACKAGE_WrapVulkanHeaders=ON
-"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" --build out\build\x64-debug --config Debug --target OctivClient
+当前发布包位于：
+
+```text
+releases/v1.1版本/OctivClient-v1.1版本.zip
 ```
 
-Release:
+压缩包内包含可执行程序和 Qt 运行时依赖，可在目标 Windows 机器上解压后运行 `OctivClient.exe`。
 
-```bat
-cd /d C:\Users\艾兰科技\Desktop\WJC\WJC_Program\OctivClient
-call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
-"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -S . -B out\build\x64-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:/Qt/6.7.3/msvc2022_64 -DCMAKE_DISABLE_FIND_PACKAGE_WrapVulkanHeaders=ON
-"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" --build out\build\x64-release --config Release --target OctivClient
-```
-
-## Usage
-
-1. Connect the PC and Octiv Sensor to the same network segment.
-2. Set the target IP address. The default is `192.168.18.52`.
-3. Click **Connect** to initialize device info, config and temperature.
-4. Click **Get Info** if device metadata needs to be refreshed.
-5. Click **Start Data** to poll realtime data and start TXT recording.
-6. Click **Stop Data** to stop polling and close the TXT output file.
-
-## HTTP Error Handling
-
-The client logs all HTTP requests and handles common response statuses:
-
-| Status | Meaning |
-|---|---|
-| 200 | OK |
-| 400 | Bad Request |
-| 401 | Unauthorized |
-| 404 | Not Found |
-| 405 | Method Not Allowed |
-| 429 | Rate Limit Exceeded |
-| 500 | Internal Error |
-
-## Documentation
-
-Detailed source walkthrough:
-
-[docs/SourceCode_LineByLine.md](docs/SourceCode_LineByLine.md)
-
-## License
-
-Internal industrial tool project. Add a license file before public redistribution if needed.

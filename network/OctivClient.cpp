@@ -191,11 +191,11 @@ void OctivClient::handleFinished(QNetworkReply *reply, RequestKind kind)
 }
 
 void OctivClient::scheduleReconnect()
-{
+{   //自动重连开启，用户曾点击连接，当前没有正在等待的重连计时器
     if (!m_autoReconnectEnabled || !m_connectRequested || m_reconnectTimer.isActive()) {
         return;
     }
-
+    //每次重连失败，再次重连的时间增加1s，最多10s
     ++m_reconnectAttempts;
     const int delayMs = qMin(10000, 1000 * m_reconnectAttempts);
     Logger::warning(QStringLiteral("Auto reconnect scheduled in %1 ms.").arg(delayMs));
@@ -211,7 +211,7 @@ void OctivClient::setConnected(bool connected)
     m_connected = connected;
     emit connectionStateChanged(m_connected);
 }
-
+//状态码转换为可读日志
 QString OctivClient::httpStatusText(int statusCode)
 {
     switch (statusCode) {

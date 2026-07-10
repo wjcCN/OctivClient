@@ -64,7 +64,7 @@ QString normalizedKey(QString key)
     }
     return normalized;
 }
-
+//从候选字段中取第一个匹配的值，使其能兼容新设备和老设备
 QJsonValue valueForAnyKey(const QJsonObject &object, std::initializer_list<QString> keys)
 {
     for (const QString &key : keys) {

@@ -3,12 +3,12 @@
   "configurePresets": [
     {
       "name": "x64-Debug",
-      "displayName": "x64 Debug - Qt 6.7.3 MSVC",
+      "displayName": "x64 Debug - Qt 6.11.1 MSVC",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/x64-debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_PREFIX_PATH": "C:/Qt/6.7.3/msvc2022_64",
+        "CMAKE_PREFIX_PATH": "D:/Programs/Qt/6.11.1/msvc2022_64",
         "CMAKE_DISABLE_FIND_PACKAGE_WrapVulkanHeaders": "ON"
       },
       "architecture": {
@@ -16,12 +16,12 @@
         "value": "x64"
       },
       "environment": {
-        "QTDIR": "C:/Qt/6.7.3/msvc2022_64"
+        "QTDIR": "D:/Programs/Qt/6.11.1/msvc2022_64"
       }
     },
     {
       "name": "x64-Release",
-      "displayName": "x64 Release - Qt 6.7.3 MSVC",
+      "displayName": "x64 Release - Qt 6.11.1 MSVC",
 
       "generator": "Ninja",
       //"generator": "Visual Studio 17 2022",
@@ -30,7 +30,7 @@
       "binaryDir": "${sourceDir}/out/build/x64-release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_PREFIX_PATH": "C:/Qt/6.7.3/msvc2022_64",
+        "CMAKE_PREFIX_PATH": "D:/Programs/Qt/6.11.1/msvc2022_64",
         "CMAKE_DISABLE_FIND_PACKAGE_WrapVulkanHeaders": "ON"
       },
       "architecture": {
@@ -38,7 +38,7 @@
         "value": "x64"
       },
       "environment": {
-        "QTDIR": "C:/Qt/6.7.3/msvc2022_64"
+        "QTDIR": "D:/Programs/Qt/6.11.1/msvc2022_64"
       }
     }
   ]
