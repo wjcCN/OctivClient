@@ -52,4 +52,4 @@ D:/Programs/Qt/6.11.1/msvc2022_64
 - [v1.1版本 Release 页面](https://github.com/wjcCN/OctivClient/releases/tag/v1.1%E7%89%88%E6%9C%AC)
 - [OctivClient-v1.1.zip 直接下载](https://github.com/wjcCN/OctivClient/releases/download/v1.1%E7%89%88%E6%9C%AC/OctivClient-v1.1.zip)
 
-压缩包内包含可执行程序和 Qt 运行时依赖，可在目标 Windows 机器上解压后运行 `OctivClient.exe`。发行包不再作为普通源码文件存放在仓库中，源码仓库只保留源代码、构建配置和项目文档。
+压缩包内包含可执行程序和 Qt 运行时依赖，可在目标 Windows 机器上解压后运行 `OctivClient.exe`。
