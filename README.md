@@ -27,4 +27,3 @@ OctivOutData Mini 是 Octiv 工业传感器数据采集工具的轻量版本。�
 - [v1.1_mini版本 Release 页面](https://github.com/wjcCN/OctivClient/releases/tag/v1.1_mini%E7%89%88%E6%9C%AC)
 - `OctivOutData-v1.1_mini.zip`
 
-源码位于仓库的 `mini` 分支，避免与完整版 `main` 分支混合。
